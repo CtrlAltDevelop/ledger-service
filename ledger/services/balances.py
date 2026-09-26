@@ -95,8 +95,9 @@ def balance_as_of(account: Account, as_of: datetime) -> Decimal:
     return (total or Decimal(0)) * account.normal_sign
 
 
-def take_snapshot(account: Account) -> BalanceSnapshot | None:
-    """Snapshot one account's balance, or return None if nothing changed.
+def take_snapshot(account: Account, *, min_entries: int = 1) -> BalanceSnapshot | None:
+    """Snapshot one account's balance, or return None if fewer than
+    ``min_entries`` entries were posted since the last snapshot.
 
     Locks the account row first. Postings lock it too before inserting
     entries, so once the lock is held no entry with a smaller id can still be
@@ -105,7 +106,7 @@ def take_snapshot(account: Account) -> BalanceSnapshot | None:
     with transaction.atomic():
         Account.objects.select_for_update().filter(pk=account.pk).get()
         raw = raw_balances([account.id])[account.id]
-        if raw.entries_since_snapshot == 0:
+        if raw.entries_since_snapshot < max(min_entries, 1):
             return None
         return BalanceSnapshot.objects.create(
             account=account, as_of_entry_id=raw.last_entry_id, balance=raw.total
