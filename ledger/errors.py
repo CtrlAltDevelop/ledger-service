@@ -98,3 +98,9 @@ class InvalidCursor(LedgerError):
     code = "invalid_cursor"
     status = 400
     title = "Pagination cursor is not valid"
+
+
+class InvalidExpiry(LedgerError):
+    code = "invalid_expiry"
+    status = 422
+    title = "Expiry must be in the future"

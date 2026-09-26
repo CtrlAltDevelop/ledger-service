@@ -4,9 +4,10 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
-from ledger.models import Account, Currency, Entry, Transaction
+from ledger.models import Account, Currency, Entry, Hold, Transaction
 from ledger.money import format_amount
 from ledger.services.balances import Balance
+from ledger.services.holds import effective_status
 
 
 def currency_scales() -> dict[str, int]:
@@ -74,4 +75,19 @@ def transaction(txn: Transaction) -> dict[str, Any]:
         "reversed_by": reversed_by,
         "created_at": txn.created_at,
         "entries": entries(txn.entries.order_by("id"), currency_scales()),
+    }
+
+
+def hold(h: Hold) -> dict[str, Any]:
+    return {
+        "id": h.id,
+        "account_id": h.account_id,
+        "amount": format_amount(h.amount, h.account.currency.scale),
+        "currency": h.account.currency_id,
+        "status": effective_status(h),
+        "reason": h.reason,
+        "expires_at": h.expires_at,
+        "capture_transaction_id": h.capture_transaction_id,
+        "created_at": h.created_at,
+        "resolved_at": h.resolved_at,
     }

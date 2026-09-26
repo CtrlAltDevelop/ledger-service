@@ -5,7 +5,7 @@ which most clients would parse into a float.
 """
 
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from ninja import Field, Schema
@@ -124,3 +124,35 @@ class TransactionOut(Schema):
 class EntryPage(Schema):
     items: list[EntryOut]
     next_cursor: str | None = Field(description="Pass as ?cursor= for the next page.")
+
+
+# --- Holds -------------------------------------------------------------------
+
+
+class HoldIn(Schema):
+    account_id: UUID
+    amount: Amount
+    currency: CurrencyCode
+    reason: Description
+    expires_at: datetime | None = None
+
+
+class CaptureIn(Schema):
+    to: UUID = Field(description="Account that receives the captured funds.")
+    amount: Amount | None = Field(
+        default=None, description="Defaults to the full hold; any remainder is released."
+    )
+    description: Description
+
+
+class HoldOut(Schema):
+    id: UUID
+    account_id: UUID
+    amount: str
+    currency: str
+    status: Literal["active", "captured", "released", "expired"]
+    reason: str
+    expires_at: datetime | None
+    capture_transaction_id: UUID | None
+    created_at: datetime
+    resolved_at: datetime | None

@@ -6,7 +6,7 @@ from ninja import NinjaAPI
 
 from ledger.api import problems
 from ledger.api.auth import ClientBearer
-from ledger.api.routes import accounts, transactions
+from ledger.api.routes import accounts, holds, transactions
 
 api = NinjaAPI(
     title="Ledger Service",
@@ -19,6 +19,7 @@ problems.install(api)
 
 api.add_router("/v1", accounts.router)
 api.add_router("/v1", transactions.router)
+api.add_router("/v1", holds.router)
 
 
 @api.get("/healthz", auth=None, include_in_schema=False)
