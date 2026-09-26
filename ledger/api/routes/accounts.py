@@ -8,6 +8,7 @@ from ninja import Query, Router, Schema, Status
 
 from ledger.api import pagination, presenters
 from ledger.api.auth import client_of
+from ledger.api.idempotency import OPENAPI_EXTRA, idempotent
 from ledger.api.schemas import AccountIn, AccountOut, AccountPatch, BalanceOut, EntryPage
 from ledger.models import Entry
 from ledger.services import accounts, balances
@@ -15,7 +16,8 @@ from ledger.services import accounts, balances
 router = Router(tags=["accounts"])
 
 
-@router.post("/accounts", response={201: AccountOut})
+@router.post("/accounts", response={201: AccountOut}, openapi_extra=OPENAPI_EXTRA)
+@idempotent
 def create_account(request: HttpRequest, payload: AccountIn) -> Status[dict[str, Any]]:
     account = accounts.create_account(
         client=client_of(request),

@@ -1,6 +1,7 @@
 """The HTTP surface: status codes, bodies, problem details, pagination."""
 
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from django.test import Client
@@ -11,18 +12,21 @@ from ledger.services import clients
 JSON = "application/json"
 
 
+def post(http: Client, url: str, body: dict[str, Any]) -> Any:
+    """POST with a fresh Idempotency-Key, as a well-behaved client would."""
+    return http.post(url, body, content_type=JSON, headers={"Idempotency-Key": str(uuid4())})
+
+
 def open_account(http: Client, **fields: Any) -> dict[str, Any]:
     body = {"owner_id": "user-1", "currency": "USD", **fields}
-    response = http.post("/v1/accounts", body, content_type=JSON)
+    response = post(http, "/v1/accounts", body)
     assert response.status_code == 201, response.content
     return response.json()  # type: ignore[no-any-return]
 
 
 def deposit(http: Client, account_id: str, amount: str) -> dict[str, Any]:
-    response = http.post(
-        "/v1/deposits",
-        {"account_id": account_id, "amount": amount, "currency": "USD"},
-        content_type=JSON,
+    response = post(
+        http, "/v1/deposits", {"account_id": account_id, "amount": amount, "currency": "USD"}
     )
     assert response.status_code == 201, response.content
     return response.json()  # type: ignore[no-any-return]
@@ -59,7 +63,7 @@ def test_open_and_read_an_account(http: Client) -> None:
 
 
 def test_unknown_currency_is_a_422_problem(http: Client) -> None:
-    response = http.post("/v1/accounts", {"owner_id": "u", "currency": "XXX"}, content_type=JSON)
+    response = post(http, "/v1/accounts", {"owner_id": "u", "currency": "XXX"})
 
     assert response.status_code == 422
     assert response.json()["type"] == "urn:ledger:problem:unknown_currency"
@@ -69,15 +73,11 @@ def test_deposit_transfer_withdraw_round_trip(http: Client) -> None:
     alice, bob = open_account(http)["id"], open_account(http)["id"]
     deposit(http, alice, "100")
 
-    transfer = http.post(
-        "/v1/transfers",
-        {"from": alice, "to": bob, "amount": "12.50", "currency": "USD"},
-        content_type=JSON,
+    transfer = post(
+        http, "/v1/transfers", {"from": alice, "to": bob, "amount": "12.50", "currency": "USD"}
     )
-    withdrawal = http.post(
-        "/v1/withdrawals",
-        {"account_id": bob, "amount": "2.5", "currency": "USD"},
-        content_type=JSON,
+    withdrawal = post(
+        http, "/v1/withdrawals", {"account_id": bob, "amount": "2.5", "currency": "USD"}
     )
 
     assert transfer.status_code == 201
@@ -90,10 +90,8 @@ def test_deposit_transfer_withdraw_round_trip(http: Client) -> None:
 def test_insufficient_funds_is_a_422_problem(http: Client) -> None:
     alice, bob = open_account(http)["id"], open_account(http)["id"]
 
-    response = http.post(
-        "/v1/transfers",
-        {"from": alice, "to": bob, "amount": "1", "currency": "USD"},
-        content_type=JSON,
+    response = post(
+        http, "/v1/transfers", {"from": alice, "to": bob, "amount": "1", "currency": "USD"}
     )
 
     assert response.status_code == 422
@@ -106,11 +104,7 @@ def test_insufficient_funds_is_a_422_problem(http: Client) -> None:
 def test_currency_mismatch_is_a_422_problem(http: Client) -> None:
     account = open_account(http)["id"]
 
-    response = http.post(
-        "/v1/deposits",
-        {"account_id": account, "amount": "1", "currency": "EUR"},
-        content_type=JSON,
-    )
+    response = post(http, "/v1/deposits", {"account_id": account, "amount": "1", "currency": "EUR"})
 
     assert response.json()["code"] == "currency_mismatch"
 
@@ -119,10 +113,8 @@ def test_currency_mismatch_is_a_422_problem(http: Client) -> None:
 def test_malformed_amounts_fail_validation(http: Client, amount: str) -> None:
     account = open_account(http)["id"]
 
-    response = http.post(
-        "/v1/deposits",
-        {"account_id": account, "amount": amount, "currency": "USD"},
-        content_type=JSON,
+    response = post(
+        http, "/v1/deposits", {"account_id": account, "amount": amount, "currency": "USD"}
     )
 
     assert response.status_code == 422
@@ -133,10 +125,8 @@ def test_malformed_amounts_fail_validation(http: Client, amount: str) -> None:
 def test_amount_finer_than_currency_is_rejected(http: Client) -> None:
     account = open_account(http)["id"]
 
-    response = http.post(
-        "/v1/deposits",
-        {"account_id": account, "amount": "1.001", "currency": "USD"},
-        content_type=JSON,
+    response = post(
+        http, "/v1/deposits", {"account_id": account, "amount": "1.001", "currency": "USD"}
     )
 
     assert response.json()["code"] == "invalid_amount"
@@ -146,7 +136,8 @@ def test_journal_entries_must_balance(http: Client) -> None:
     a = open_account(http, allow_overdraft=True)["id"]
     b = open_account(http)["id"]
 
-    response = http.post(
+    response = post(
+        http,
         "/v1/transactions",
         {
             "entries": [
@@ -154,7 +145,6 @@ def test_journal_entries_must_balance(http: Client) -> None:
                 {"account_id": b, "amount": "-9", "currency": "USD"},
             ]
         },
-        content_type=JSON,
     )
 
     assert response.status_code == 422
@@ -166,8 +156,8 @@ def test_reverse_a_transaction(http: Client) -> None:
     account = open_account(http)["id"]
     original = deposit(http, account, "5")
 
-    reversal = http.post(f"/v1/transactions/{original['id']}/reverse", {}, content_type=JSON)
-    again = http.post(f"/v1/transactions/{original['id']}/reverse", {}, content_type=JSON)
+    reversal = post(http, f"/v1/transactions/{original['id']}/reverse", {})
+    again = post(http, f"/v1/transactions/{original['id']}/reverse", {})
 
     assert reversal.status_code == 201
     assert reversal.json()["reverses"] == original["id"]
@@ -185,10 +175,8 @@ def test_frozen_account_cannot_send(http: Client) -> None:
     deposit(http, account, "5")
 
     frozen = http.patch(f"/v1/accounts/{account}", {"status": "frozen"}, content_type=JSON)
-    response = http.post(
-        "/v1/withdrawals",
-        {"account_id": account, "amount": "1", "currency": "USD"},
-        content_type=JSON,
+    response = post(
+        http, "/v1/withdrawals", {"account_id": account, "amount": "1", "currency": "USD"}
     )
 
     assert frozen.json()["status"] == "frozen"
