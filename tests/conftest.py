@@ -1,13 +1,15 @@
 from collections.abc import Callable
+from decimal import Decimal
 
 import pytest
 
 from ledger.models import Account, AccountType, ApiClient, Currency
+from ledger.services import balances, payments
 
 TEST_CURRENCIES = {"USD": 2, "EUR": 2, "JPY": 0, "BTC": 8}
 
 
-def _ensure_currencies() -> None:
+def ensure_currencies() -> None:
     # Transactional tests truncate every table, seeded currencies included.
     for code, scale in TEST_CURRENCIES.items():
         Currency.objects.get_or_create(code=code, defaults={"scale": scale})
@@ -21,9 +23,8 @@ def api_client_record(db: None) -> ApiClient:
 AccountFactory = Callable[..., Account]
 
 
-@pytest.fixture
-def make_account(api_client_record: ApiClient) -> AccountFactory:
-    _ensure_currencies()
+def account_factory(client: ApiClient) -> AccountFactory:
+    ensure_currencies()
 
     def make(
         currency: str = "USD",
@@ -31,7 +32,7 @@ def make_account(api_client_record: ApiClient) -> AccountFactory:
         **fields: object,
     ) -> Account:
         return Account.objects.create(
-            client=api_client_record,
+            client=client,
             owner_id=str(fields.pop("owner_id", "owner-1")),
             currency_id=currency,
             type=kind,
@@ -39,3 +40,21 @@ def make_account(api_client_record: ApiClient) -> AccountFactory:
         )
 
     return make
+
+
+@pytest.fixture
+def make_account(api_client_record: ApiClient) -> AccountFactory:
+    return account_factory(api_client_record)
+
+
+def balance_of(account: Account) -> Decimal:
+    return balances.get_balance(account).ledger
+
+
+def fund(account: Account, amount: str) -> None:
+    payments.deposit(
+        client=account.client,
+        account_id=account.id,
+        amount=Decimal(amount),
+        currency=account.currency_id,
+    )
