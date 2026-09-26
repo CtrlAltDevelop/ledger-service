@@ -2,9 +2,10 @@ from collections.abc import Callable
 from decimal import Decimal
 
 import pytest
+from django.test import Client
 
 from ledger.models import Account, AccountType, ApiClient, Currency
-from ledger.services import balances, payments
+from ledger.services import balances, clients, payments
 
 TEST_CURRENCIES = {"USD": 2, "EUR": 2, "JPY": 0, "BTC": 8}
 
@@ -58,3 +59,11 @@ def fund(account: Account, amount: str) -> None:
         amount=Decimal(amount),
         currency=account.currency_id,
     )
+
+
+@pytest.fixture
+def http(db: None) -> Client:
+    """A test client authenticated as a fresh API client."""
+    ensure_currencies()
+    _, token = clients.create_client("http-tests")
+    return Client(headers={"Authorization": f"Bearer {token}"})

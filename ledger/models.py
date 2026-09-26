@@ -14,12 +14,9 @@ from typing import ClassVar
 
 from django.db import models
 from django.db.models import F, Q
+from django.utils import timezone
 
 from ledger.money import DECIMAL_PLACES, MAX_DIGITS
-
-
-def _amount_field() -> "models.DecimalField[object, object]":
-    return models.DecimalField(max_digits=MAX_DIGITS, decimal_places=DECIMAL_PLACES)
 
 
 class ApiClient(models.Model):
@@ -141,10 +138,12 @@ class Entry(models.Model):
     account = models.ForeignKey(
         Account, on_delete=models.PROTECT, related_name="entries", db_index=False
     )
-    amount = _amount_field()
+    amount = models.DecimalField(max_digits=MAX_DIGITS, decimal_places=DECIMAL_PLACES)
     # Copied from the account so per-currency sums need no join.
     currency = models.CharField(max_length=8)
-    created_at = models.DateTimeField(auto_now_add=True)
+    # Set to the transaction's timestamp, so every leg of a transaction falls
+    # on the same side of any as-of cut-off.
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         verbose_name_plural = "entries"
@@ -175,7 +174,7 @@ class Hold(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="holds")
-    amount = _amount_field()
+    amount = models.DecimalField(max_digits=MAX_DIGITS, decimal_places=DECIMAL_PLACES)
     reason = models.CharField(max_length=255, blank=True)
     status = models.CharField(max_length=16, choices=HoldStatus.choices, default=HoldStatus.ACTIVE)
     expires_at = models.DateTimeField(null=True, blank=True)
@@ -214,7 +213,7 @@ class BalanceSnapshot(models.Model):
     account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="snapshots")
     as_of_entry_id = models.BigIntegerField()
     # Raw signed sum of entry amounts, not multiplied by the normal sign.
-    balance = _amount_field()
+    balance = models.DecimalField(max_digits=MAX_DIGITS, decimal_places=DECIMAL_PLACES)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

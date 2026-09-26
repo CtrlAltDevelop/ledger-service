@@ -41,4 +41,5 @@ def fits_storage(amount: Decimal) -> bool:
 
 def format_amount(amount: Decimal, scale: int) -> str:
     """Render an amount the way the API returns it: fixed-point, currency scale."""
-    return f"{quantize(amount, scale):f}"
+    # Negating a zero balance yields Decimal("-0"); nobody wants to see "-0.00".
+    return f"{quantize(amount, scale) + 0:f}"

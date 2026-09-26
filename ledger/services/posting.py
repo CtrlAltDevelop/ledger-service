@@ -109,6 +109,7 @@ def post(
                 account_id=leg.account_id,
                 amount=leg.amount,
                 currency=leg.currency,
+                created_at=txn.created_at,
             )
             for leg in legs
         )

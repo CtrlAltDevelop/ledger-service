@@ -92,3 +92,9 @@ class IdempotencyConflict(LedgerError):
     code = "idempotency_conflict"
     status = 409
     title = "Idempotency-Key was already used with a different request"
+
+
+class InvalidCursor(LedgerError):
+    code = "invalid_cursor"
+    status = 400
+    title = "Pagination cursor is not valid"
