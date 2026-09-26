@@ -1,0 +1,76 @@
+[project]
+name = "ledger-service"
+version = "0.1.0"
+description = "A double-entry ledger over HTTP: atomic, idempotent, append-only."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Mohammad Zarif" }]
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.2,<5.3",
+    "django-ninja>=1.4",
+    "psycopg[binary]>=3.2",
+    "dj-database-url>=2.3",
+    "gunicorn>=23.0",
+]
+
+[project.optional-dependencies]
+redis = ["redis>=5.2"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.10",
+    "hypothesis>=6.120",
+    "ruff>=0.9",
+    "mypy>=1.14",
+    "django-stubs[compatible-mypy]>=5.2",
+    "redis>=5.2",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["ledger/migrations"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "B", "UP", "SIM", "C4", "DJ", "RUF", "PT", "S", "N", "RET", "PL", "TID",
+]
+ignore = [
+    "PLR0913",  # service functions take keyword-only arguments on purpose
+    "PLR2004",  # magic values read fine in tests and HTTP status checks
+    "N818",     # domain errors read as nouns: InsufficientFunds, not InsufficientFundsError
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "PLR0915"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "ledger"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["mypy_django_plugin.main"]
+exclude = ["^\\.venv/", "^bench/"]
+
+[[tool.mypy.overrides]]
+module = ["ledger.migrations.*"]
+ignore_errors = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings_test"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "concurrency: races real threads against a real Postgres",
+]
+filterwarnings = ["error::RuntimeWarning"]
