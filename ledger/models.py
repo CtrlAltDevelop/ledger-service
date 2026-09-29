@@ -238,7 +238,9 @@ class IdempotencyRecord(models.Model):
     # SHA-256 over method, path and canonical body.
     request_hash = models.CharField(max_length=64)
     response_status = models.PositiveSmallIntegerField(null=True)
-    response_body = models.JSONField(null=True)
+    # The exact bytes sent the first time, as text. Not jsonb: jsonb reorders
+    # keys, and a replay should be byte-for-byte the original response.
+    response_body = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

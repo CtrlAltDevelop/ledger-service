@@ -24,7 +24,7 @@ from collections.abc import Callable
 from typing import Any, Concatenate, cast
 
 from django.db import connection, transaction
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse
 from ninja import Status
 from ninja.responses import NinjaJSONEncoder
 
@@ -38,8 +38,8 @@ REPLAY_HEADER = "Idempotent-Replayed"
 _KEY_PATTERN = re.compile(r"^[\x21-\x7e]{1,255}$")  # visible ASCII, no spaces
 
 _CLAIM_SQL = """
-INSERT INTO ledger_idempotencyrecord (client_id, key, request_hash, created_at)
-VALUES (%s, %s, %s, now())
+INSERT INTO ledger_idempotencyrecord (client_id, key, request_hash, response_body, created_at)
+VALUES (%s, %s, %s, '', now())
 ON CONFLICT (client_id, key) DO NOTHING
 RETURNING id
 """
@@ -118,9 +118,9 @@ def _run(
         try:
             with transaction.atomic():
                 result = operation()
-            status, body = result.status_code, _jsonable(result.value)
+            status, body = result.status_code, json.dumps(result.value, cls=NinjaJSONEncoder)
         except errors.LedgerError as error:
-            status, body = error.status, json.loads(problems.from_error(error).content)
+            status, body = error.status, problems.from_error(error).content.decode()
 
         IdempotencyRecord.objects.filter(id=claimed[0]).update(
             response_status=status, response_body=body
@@ -128,13 +128,9 @@ def _run(
     return _response(status, body, replayed=False)
 
 
-def _jsonable(value: Any) -> Any:
-    return json.loads(json.dumps(value, cls=NinjaJSONEncoder))
-
-
-def _response(status: int, body: Any, *, replayed: bool) -> HttpResponse:
+def _response(status: int, body: str, *, replayed: bool) -> HttpResponse:
     content_type = problems.CONTENT_TYPE if status >= 400 else "application/json"
-    response = JsonResponse(body, status=status, content_type=content_type, safe=False)
+    response = HttpResponse(body, status=status, content_type=content_type)
     if replayed:
         response[REPLAY_HEADER] = "true"
     return response
