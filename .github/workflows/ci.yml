@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, so a newly published advisory fails a build nobody pushed.
+    - cron: "17 4 * * 1"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  backend:
+    name: Backend
+    uses: CtrlAltDevelop/ci-workflows/.github/workflows/python-backend.yml@v1
+    permissions:
+      contents: read
+    with:
+      python-version: "3.14"
+      # Exported from uv.lock by `make requirements`; keep the two in step.
+      requirements: requirements.txt
+      # The suite needs Postgres (triggers, row locks, real concurrency) but
+      # not Redis: the stream publisher is tested against a fake client.
+      postgres: true
+      postgres-image: "postgres:16"
+      redis: false
+      mypy: true
+      test-requirements: >-
+        pytest pytest-django hypothesis django-stubs[compatible-mypy]
+
+  security:
+    name: Security
+    uses: CtrlAltDevelop/ci-workflows/.github/workflows/security.yml@v1
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+    with:
+      languages: '["python"]'
