@@ -1,5 +1,11 @@
 # Ledger Service
 
+[![CI](https://github.com/CtrlAltDevelop/ledger-service/actions/workflows/ci.yml/badge.svg)](https://github.com/CtrlAltDevelop/ledger-service/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+![Django](https://img.shields.io/badge/django-5.2-green)
+![PostgreSQL](https://img.shields.io/badge/postgresql-16-336791)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
+
 A double-entry ledger over HTTP. It moves money between accounts
 **atomically**, **idempotently** and **append-only**, so money is never
 created or lost, whatever the concurrency, the retries or the crashes.
