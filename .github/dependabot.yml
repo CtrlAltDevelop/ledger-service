@@ -16,6 +16,9 @@ updates:
     groups:
       python-minor:
         update-types: [minor, patch]
+    ignore:
+      # pydantic pins pydantic-core exactly; bumping it alone can't install.
+      - dependency-name: pydantic-core
 
   - package-ecosystem: docker
     directory: "/"

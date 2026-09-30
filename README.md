@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/CtrlAltDevelop/ledger-service/actions/workflows/ci.yml/badge.svg)](https://github.com/CtrlAltDevelop/ledger-service/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
-![Django](https://img.shields.io/badge/django-5.2-green)
+![Django](https://img.shields.io/badge/django-6.1-green)
 ![PostgreSQL](https://img.shields.io/badge/postgresql-16-336791)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -10,7 +10,7 @@ A double-entry ledger over HTTP. It moves money between accounts
 **atomically**, **idempotently** and **append-only**, so money is never
 created or lost, whatever the concurrency, the retries or the crashes.
 
-Python 3.12+, Django 5.2, Django Ninja, PostgreSQL 16, with Redis as an
+Python 3.12+, Django 6.1, Django Ninja, PostgreSQL 16, with Redis as an
 optional event sink.
 
 - Every movement is a transaction of two or more entries that sum to zero in
