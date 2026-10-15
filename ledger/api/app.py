@@ -10,7 +10,7 @@ from ledger.api.routes import accounts, holds, transactions
 
 api = NinjaAPI(
     title="Ledger Service",
-    version="0.1.0",
+    version="0.1.1",
     description="A double-entry ledger over HTTP.",
     auth=ClientBearer(),
     urls_namespace="ledger",

@@ -1,6 +1,6 @@
 [project]
 name = "ledger-service"
-version = "0.1.0"
+version = "0.1.1"
 description = "A double-entry ledger over HTTP: atomic, idempotent, append-only."
 readme = "README.md"
 license = "MIT"

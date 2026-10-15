@@ -6,10 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-15
+
 ### Fixed
 
 - `POST /v1/holds` with an `expires_at` that has no UTC offset returned a 500;
   it is now refused with a 422 `validation_error`.
+
+### Changed
+
+- Dependencies: Django 6.1.2 (security fixes), pydantic 2.14.1 with
+  pydantic-core 2.50.1, hypothesis 6.169.4 and ruff 0.17.0.
 
 ## [0.1.0] - 2026-09-30
 
@@ -38,5 +45,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Docker image, `docker compose` stack, k6 benchmark, and CI through the
   shared `ci-workflows` pipelines.
 
-[Unreleased]: https://github.com/CtrlAltDevelop/ledger-service/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/CtrlAltDevelop/ledger-service/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/CtrlAltDevelop/ledger-service/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/CtrlAltDevelop/ledger-service/releases/tag/v0.1.0
