@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- `POST /v1/holds` with an `expires_at` that has no UTC offset returned a 500;
+  it is now refused with a 422 `validation_error`.
+
 ## [0.1.0] - 2026-09-30
 
 ### Added

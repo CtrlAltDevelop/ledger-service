@@ -9,6 +9,7 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from ninja import Field, Schema
+from pydantic import AwareDatetime
 
 from ledger.models import AccountStatus, AccountType, TransactionKind
 
@@ -134,7 +135,8 @@ class HoldIn(Schema):
     amount: Amount
     currency: CurrencyCode
     reason: Description
-    expires_at: datetime | None = None
+    # Must carry a UTC offset: a naive time cannot be compared with now().
+    expires_at: AwareDatetime | None = None
 
 
 class CaptureIn(Schema):

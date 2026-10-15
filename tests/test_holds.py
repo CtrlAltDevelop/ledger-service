@@ -167,3 +167,13 @@ def test_holds_over_http(http: Client) -> None:
     assert again.json()["code"] == "hold_not_active"
     assert http.get(f"/v1/accounts/{seller}/balance").json()["ledger"] == "15.00"
     assert http.get(f"/v1/accounts/{buyer}/balance").json()["available"] == "35.00"
+
+
+def test_an_expiry_without_a_timezone_is_refused(http: Client) -> None:
+    buyer = open_account(http)["id"]
+    body = {"account_id": buyer, "amount": "1", "currency": "USD"}
+
+    response = post(http, "/v1/holds", {**body, "expires_at": "2099-01-01T00:00:00"})
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
