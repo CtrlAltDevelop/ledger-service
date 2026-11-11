@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.14-slim AS runtime
+FROM python:3.15-slim AS runtime
 
 # WEB_CONCURRENCY is gunicorn's worker count.
 ENV PYTHONDONTWRITEBYTECODE=1 \
