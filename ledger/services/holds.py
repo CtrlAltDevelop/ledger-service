@@ -5,7 +5,8 @@ fills and releases it when the order is cancelled. While active, a hold
 lowers the account's available balance but moves no money.
 
 An expired hold stops counting straight away, with no job needed to sweep
-it; it stays ``active`` in the table and reads as ``expired``.
+it; it stays ``active`` in the table and reads as ``expired``. ``expire_due``
+(the ``expire_holds`` command) makes that state explicit and announces it.
 
 Lock order matches posting: accounts (by id) first, then the hold row.
 Release takes only the hold row, and holds no account lock while waiting
@@ -17,6 +18,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from django.db import transaction
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from ledger import errors, money
@@ -38,7 +40,7 @@ def get_hold(client: ApiClient, hold_id: UUID, *, for_update: bool = False) -> H
 
 def effective_status(hold: Hold) -> str:
     if hold.status == HoldStatus.ACTIVE and is_expired(hold):
-        return "expired"
+        return HoldStatus.EXPIRED
     return hold.status
 
 
@@ -119,13 +121,53 @@ def capture_hold(
 def release_hold(*, client: ApiClient, hold_id: UUID) -> Hold:
     with transaction.atomic():
         hold = get_hold(client, hold_id, for_update=True)
-        _require_unresolved(hold)
-        # Releasing an expired hold is allowed: it only makes the state explicit.
+        # Releasing an expired hold is allowed, swept or not: a cancelled order
+        # must not fail because a sweeper got there first.
+        if hold.status != HoldStatus.EXPIRED:
+            _require_unresolved(hold)
         hold.status = HoldStatus.RELEASED
         hold.resolved_at = timezone.now()
         hold.save(update_fields=["status", "resolved_at"])
         _announce(hold, "hold.released")
     return hold
+
+
+def list_holds(
+    client: ApiClient, *, account_id: UUID | None, status: str | None
+) -> "QuerySet[Hold]":
+    """The client's holds. ``status`` is the effective one, so ``expired`` includes overdue."""
+    rows = Hold.objects.filter(account__client=client).select_related("account__currency")
+    if account_id is not None:
+        rows = rows.filter(account_id=accounts.get_account(client, account_id).id)
+    overdue = Q(status=HoldStatus.ACTIVE, expires_at__lte=timezone.now())
+    if status == HoldStatus.ACTIVE:
+        rows = rows.filter(status=HoldStatus.ACTIVE).exclude(overdue)
+    elif status == HoldStatus.EXPIRED:
+        rows = rows.filter(Q(status=HoldStatus.EXPIRED) | overdue)
+    elif status is not None:
+        rows = rows.filter(status=status)
+    return rows
+
+
+def expire_due(*, batch_size: int = 100) -> int:
+    """Mark one batch of overdue active holds ``expired`` and announce each. Returns how many.
+
+    Takes only hold rows, with ``SKIP LOCKED``: a capture or release in flight
+    keeps its hold, and no account lock is held, so lock order is untouched.
+    """
+    with transaction.atomic():
+        due = list(
+            Hold.objects.select_for_update(skip_locked=True, of=("self",))
+            .select_related("account")
+            .filter(status=HoldStatus.ACTIVE, expires_at__lte=timezone.now())
+            .order_by("expires_at", "id")[:batch_size]
+        )
+        for hold in due:
+            hold.status = HoldStatus.EXPIRED
+            hold.resolved_at = hold.expires_at
+            hold.save(update_fields=["status", "resolved_at"])
+            _announce(hold, "hold.expired")
+    return len(due)
 
 
 def _require_unresolved(hold: Hold) -> None:

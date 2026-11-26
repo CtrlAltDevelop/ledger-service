@@ -1,7 +1,9 @@
 from datetime import timedelta
 from decimal import Decimal
+from io import StringIO
 
 import pytest
+from django.core.management import call_command
 from django.test import Client
 from django.utils import timezone
 
@@ -177,3 +179,54 @@ def test_an_expiry_without_a_timezone_is_refused(http: Client) -> None:
 
     assert response.status_code == 422
     assert response.json()["code"] == "validation_error"
+
+
+def overdue(account: Account) -> Hold:
+    hold = place(account, "10", expires_at=timezone.now() + timedelta(minutes=5))
+    Hold.objects.filter(id=hold.id).update(expires_at=timezone.now() - timedelta(seconds=1))
+    hold.refresh_from_db()
+    return hold
+
+
+def test_expire_due_marks_overdue_holds_and_announces_each_once(funded: Account) -> None:
+    hold = overdue(funded)
+    live = place(funded, "5", expires_at=timezone.now() + timedelta(hours=1))
+
+    assert holds.expire_due() == 1
+    assert holds.expire_due() == 0
+
+    hold.refresh_from_db()
+    live.refresh_from_db()
+    assert hold.status == HoldStatus.EXPIRED
+    assert hold.resolved_at == hold.expires_at
+    assert live.status == HoldStatus.ACTIVE
+    assert OutboxEvent.objects.filter(event_type="hold.expired", aggregate_id=hold.id).count() == 1
+    assert balances.get_balance(funded).held == Decimal("5")
+
+
+def test_a_swept_hold_cannot_be_captured_but_can_still_be_released(
+    api_client_record: ApiClient, funded: Account, make_account: AccountFactory
+) -> None:
+    hold = overdue(funded)
+    holds.expire_due()
+
+    with pytest.raises(errors.HoldNotActive, match="expired"):
+        holds.capture_hold(
+            client=api_client_record, hold_id=hold.id, destination_id=make_account().id
+        )
+    released = holds.release_hold(client=api_client_record, hold_id=hold.id)
+
+    assert released.status == HoldStatus.RELEASED
+    with pytest.raises(errors.HoldNotActive):
+        holds.release_hold(client=api_client_record, hold_id=hold.id)
+
+
+def test_expire_holds_command_drains_in_batches(funded: Account) -> None:
+    for _ in range(3):
+        overdue(funded)
+    out = StringIO()
+
+    call_command("expire_holds", "--batch-size", "2", stdout=out)
+
+    assert "expired 3 hold(s)" in out.getvalue()
+    assert not Hold.objects.filter(status=HoldStatus.ACTIVE).exists()

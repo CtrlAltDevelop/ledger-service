@@ -122,6 +122,11 @@ class TransactionOut(Schema):
     entries: list[EntryOut]
 
 
+class TransactionPage(Schema):
+    items: list[TransactionOut]
+    next_cursor: str | None = Field(description="Pass as ?cursor= for the next page.")
+
+
 class EntryPage(Schema):
     items: list[EntryOut]
     next_cursor: str | None = Field(description="Pass as ?cursor= for the next page.")
@@ -145,6 +150,11 @@ class CaptureIn(Schema):
         default=None, description="Defaults to the full hold; any remainder is released."
     )
     description: Description
+
+
+class HoldPage(Schema):
+    items: list["HoldOut"]
+    next_cursor: str | None = Field(description="Pass as ?cursor= for the next page.")
 
 
 class HoldOut(Schema):

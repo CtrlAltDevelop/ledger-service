@@ -163,6 +163,8 @@ class HoldStatus(models.TextChoices):
     ACTIVE = "active"
     CAPTURED = "captured"
     RELEASED = "released"
+    # Set by ``expire_holds``. Before that, an overdue hold is ACTIVE and merely reads as expired.
+    EXPIRED = "expired"
 
 
 class Hold(models.Model):

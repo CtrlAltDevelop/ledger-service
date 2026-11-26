@@ -3,10 +3,11 @@ from typing import Any
 from uuid import UUID
 
 from django.http import HttpRequest
-from ninja import Router, Status
+from ninja import Field, Query, Router, Schema, Status
+from pydantic import AwareDatetime
 
 from ledger import errors
-from ledger.api import presenters
+from ledger.api import pagination, presenters
 from ledger.api.auth import client_of
 from ledger.api.idempotency import OPENAPI_EXTRA, idempotent
 from ledger.api.schemas import (
@@ -14,11 +15,12 @@ from ledger.api.schemas import (
     JournalIn,
     ReverseIn,
     TransactionOut,
+    TransactionPage,
     TransferIn,
     WithdrawalIn,
 )
-from ledger.models import Transaction
-from ledger.services import payments, reversals
+from ledger.models import Entry, Transaction, TransactionKind
+from ledger.services import accounts, payments, reversals
 from ledger.services.posting import Leg
 
 router = Router(tags=["transactions"])
@@ -80,6 +82,38 @@ def journal(request: HttpRequest, payload: JournalIn) -> Created:
         metadata=payload.metadata,
     )
     return Status(201, presenters.transaction(txn))
+
+
+class TransactionQuery(Schema):
+    account_id: UUID | None = Field(
+        None, description="Only transactions with a leg on this account."
+    )
+    kind: TransactionKind | None = None
+    created_from: AwareDatetime | None = Field(None, description="Inclusive.")
+    created_to: AwareDatetime | None = Field(None, description="Exclusive.")
+    cursor: str | None = None
+    limit: int = Field(50, ge=1, le=100)
+
+
+@router.get("/transactions", response=TransactionPage)
+def list_transactions(request: HttpRequest, query: Query[TransactionQuery]) -> dict[str, Any]:
+    """Transactions newest first, paged by an opaque cursor."""
+    client = client_of(request)
+    rows = Transaction.objects.filter(client=client)
+    if query.account_id is not None:
+        account = accounts.get_account(client, query.account_id)
+        legs = Entry.objects.filter(account=account).values("transaction_id")
+        rows = rows.filter(id__in=legs)
+    if query.kind is not None:
+        rows = rows.filter(kind=query.kind)
+    if query.created_from is not None:
+        rows = rows.filter(created_at__gte=query.created_from)
+    if query.created_to is not None:
+        rows = rows.filter(created_at__lt=query.created_to)
+    page, next_cursor = pagination.page_newest_first(rows, query.cursor, query.limit)
+    # ponytail: two queries per item (entries, reversed_by); batch them if lists get hot.
+    scales = presenters.currency_scales()
+    return {"items": [presenters.transaction(t, scales) for t in page], "next_cursor": next_cursor}
 
 
 @router.get("/transactions/{transaction_id}", response=TransactionOut)

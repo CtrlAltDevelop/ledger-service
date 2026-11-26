@@ -64,7 +64,7 @@ def entries(items: Iterable[Entry], scales: dict[str, int]) -> list[dict[str, An
     ]
 
 
-def transaction(txn: Transaction) -> dict[str, Any]:
+def transaction(txn: Transaction, scales: dict[str, int] | None = None) -> dict[str, Any]:
     reversed_by = Transaction.objects.filter(reverses=txn).values_list("id", flat=True).first()
     return {
         "id": txn.id,
@@ -74,7 +74,7 @@ def transaction(txn: Transaction) -> dict[str, Any]:
         "reverses": txn.reverses_id,
         "reversed_by": reversed_by,
         "created_at": txn.created_at,
-        "entries": entries(txn.entries.order_by("id"), currency_scales()),
+        "entries": entries(txn.entries.order_by("id"), scales or currency_scales()),
     }
 
 

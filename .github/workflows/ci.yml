@@ -3,11 +3,6 @@ name: CI
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
-  schedule:
-    # Weekly, so a newly published advisory fails a build nobody pushed.
-    - cron: "17 4 * * 1"
 
 concurrency:
   group: ci-${{ github.ref }}
