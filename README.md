@@ -110,9 +110,11 @@ UUID is ideal). OpenAPI docs are served at `/docs`.
 | `POST` | `/v1/withdrawals` | Money out to outside |
 | `POST` | `/v1/transfers` | `from` → `to`, same currency and same side of the ledger |
 | `POST` | `/v1/transactions` | Any balanced set of 2–50 signed entries, e.g. a trade with a fee leg |
+| `GET` | `/v1/transactions` | Transactions, newest first, paged with `?cursor=&limit=`; filter by `account_id`, `kind`, `created_from`, `created_to` |
 | `GET` | `/v1/transactions/{id}` | A transaction and its entries |
 | `POST` | `/v1/transactions/{id}/reverse` | Post the exact negation, linked to the original |
 | `POST` | `/v1/holds` | Reserve funds: `account_id`, `amount`, `currency`, optional `expires_at` |
+| `GET` | `/v1/holds` | Holds, newest first, paged; filter by `account_id` and `status` (overdue holds count as `expired`) |
 | `GET` | `/v1/holds/{id}` | Read a hold: `active`, `captured`, `released` or `expired` |
 | `POST` | `/v1/holds/{id}/capture` | Move up to the held amount to `to`; any remainder is released |
 | `POST` | `/v1/holds/{id}/release` | Let the funds go |
@@ -202,7 +204,8 @@ make check         # ruff, mypy --strict, pytest
 
 | Command | When |
 |---|---|
-| `manage.py outbox_worker [--once]` | Always running. Handles SIGTERM by finishing the batch in hand. |
+| `manage.py outbox_worker [--once]` | Always running. `LEDGER_OUTBOX_PUBLISHER` is `log`, `redis` or `webhook` (POSTs each event to `LEDGER_WEBHOOK_URL`, HMAC-SHA256 in `X-Ledger-Signature`, keyed by `LEDGER_WEBHOOK_SECRET`). Handles SIGTERM by finishing the batch in hand. |
+| `manage.py expire_holds` | Optional, from cron. Marks overdue holds `expired` and emits `hold.expired`; balances are already correct without it. |
 | `manage.py reconcile [--json]` | On a schedule, e.g. nightly. Exits 1 on any discrepancy, so alert on the exit code. |
 | `manage.py snapshot_balances [--min-entries N]` | Optional, off-peak. Busy accounts are snapshotted inline every `LEDGER_SNAPSHOT_EVERY` entries. |
 | `manage.py create_api_client NAME` | Prints a new client's token once; only its SHA-256 is stored. |

@@ -3,12 +3,13 @@ from typing import Any
 from uuid import UUID
 
 from django.http import HttpRequest
-from ninja import Router, Status
+from ninja import Field, Query, Router, Schema, Status
 
-from ledger.api import presenters
+from ledger.api import pagination, presenters
 from ledger.api.auth import client_of
 from ledger.api.idempotency import OPENAPI_EXTRA, idempotent
-from ledger.api.schemas import CaptureIn, HoldIn, HoldOut
+from ledger.api.schemas import CaptureIn, HoldIn, HoldOut, HoldPage
+from ledger.models import HoldStatus
 from ledger.services import holds
 
 router = Router(tags=["holds"])
@@ -26,6 +27,23 @@ def create_hold(request: HttpRequest, payload: HoldIn) -> Status[dict[str, Any]]
         expires_at=payload.expires_at,
     )
     return Status(201, presenters.hold(hold))
+
+
+class HoldQuery(Schema):
+    account_id: UUID | None = None
+    status: HoldStatus | None = Field(
+        None, description="Effective status: overdue holds are expired."
+    )
+    cursor: str | None = None
+    limit: int = Field(50, ge=1, le=200)
+
+
+@router.get("/holds", response=HoldPage)
+def list_holds(request: HttpRequest, query: Query[HoldQuery]) -> dict[str, Any]:
+    """Holds newest first, paged by an opaque cursor."""
+    rows = holds.list_holds(client_of(request), account_id=query.account_id, status=query.status)
+    page, next_cursor = pagination.page_newest_first(rows, query.cursor, query.limit)
+    return {"items": [presenters.hold(h) for h in page], "next_cursor": next_cursor}
 
 
 @router.get("/holds/{hold_id}", response=HoldOut)
