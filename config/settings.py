@@ -81,7 +81,9 @@ LOGGING = {
 # one, so a balance read never sums more than this many rows.
 LEDGER_SNAPSHOT_EVERY = int(os.environ.get("LEDGER_SNAPSHOT_EVERY", "500"))
 
-# Where the outbox worker sends events: "log" or "redis" (a Redis stream).
+# Where the outbox worker sends events: "log", "redis" (a Redis stream) or "webhook".
 LEDGER_OUTBOX_PUBLISHER = os.environ.get("LEDGER_OUTBOX_PUBLISHER", "log")
 LEDGER_OUTBOX_STREAM = os.environ.get("LEDGER_OUTBOX_STREAM", "ledger.events")
+LEDGER_WEBHOOK_URL = os.environ.get("LEDGER_WEBHOOK_URL", "")
+LEDGER_WEBHOOK_SECRET = os.environ.get("LEDGER_WEBHOOK_SECRET", "")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
