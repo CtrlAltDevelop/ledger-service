@@ -6,6 +6,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-26
+
+### Added
+
+- `GET /v1/transactions`, newest first with a cursor, filterable by
+  `account_id`, `kind`, `created_from` and `created_to`.
+- `GET /v1/holds`, newest first with a cursor, filterable by `account_id` and
+  `status`; an overdue hold counts as `expired`.
+- `expire_holds` command: marks overdue holds `expired` and emits a
+  `hold.expired` event once each. Balances were already correct without it.
+- Webhook publisher: `LEDGER_OUTBOX_PUBLISHER=webhook` POSTs each outbox event
+  to `LEDGER_WEBHOOK_URL`, signed with HMAC-SHA256 in `X-Ledger-Signature`
+  (key `LEDGER_WEBHOOK_SECRET`), with the event id in `X-Ledger-Event-Id`.
+  Non-2xx answers, timeouts and redirects are retried, never followed.
+
+### Changed
+
+- **License: MIT to AGPL-3.0-only.**
+- Holds have a persisted `expired` status once swept; releasing an expired hold
+  is still allowed. Migration `0005` only changes field choices.
+- Docker base image: `python:3.15-slim`.
+- Dependencies: Django 6.1.3, django-ninja 1.8.0, pydantic 2.14.3 with
+  pydantic-core 2.50.4, asgiref 3.13.0, psycopg 3.3.8, sqlparse 0.6.1,
+  typing-inspection 0.4.5, tzdata 2026.6, hypothesis 6.170.15, mypy 2.4.1,
+  pytest 9.2.0 and ruff 0.17.4.
+
 ## [0.1.1] - 2026-10-15
 
 ### Fixed
@@ -45,6 +71,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Docker image, `docker compose` stack, k6 benchmark, and CI through the
   shared `ci-workflows` pipelines.
 
-[Unreleased]: https://github.com/CtrlAltDevelop/ledger-service/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/CtrlAltDevelop/ledger-service/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/CtrlAltDevelop/ledger-service/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/CtrlAltDevelop/ledger-service/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/CtrlAltDevelop/ledger-service/releases/tag/v0.1.0
