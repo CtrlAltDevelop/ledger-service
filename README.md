@@ -4,7 +4,10 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![Django](https://img.shields.io/badge/django-6.1-green)
 ![PostgreSQL](https://img.shields.io/badge/postgresql-16-336791)
-[![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
+![Redis](https://img.shields.io/badge/redis-7%20(optional)-DC382D)
+![Docker](https://img.shields.io/badge/docker-compose-2496ED)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![last commit](https://img.shields.io/github/last-commit/CtrlAltDevelop/ledger-service)](https://github.com/CtrlAltDevelop/ledger-service/commits/main)
 
 A double-entry ledger over HTTP. It moves money between accounts
 **atomically**, **idempotently** and **append-only**, so money is never
@@ -273,4 +276,4 @@ Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-[MIT](LICENSE) © 2026 Mohammad Zarif
+[AGPL-3.0-only](LICENSE) © 2026 Mohammad Zarif
